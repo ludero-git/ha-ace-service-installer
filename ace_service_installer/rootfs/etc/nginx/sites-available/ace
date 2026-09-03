@@ -1,0 +1,33 @@
+server {
+    listen 8100 default_server;
+    server_name _;
+
+    client_max_body_size 1m;
+
+    location /api/ {
+        access_log off;
+        proxy_pass http://127.0.0.1:8098;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_buffering off;
+    }
+
+    location /websockify {
+        proxy_pass http://127.0.0.1:6080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+        proxy_buffering off;
+    }
+
+    location /novnc/ {
+        alias /opt/ace/web/novnc/;
+    }
+
+    location / {
+        root /opt/ace/web/app;
+        try_files $uri $uri/ /index.html;
+    }
+}

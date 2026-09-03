@@ -1,0 +1,43 @@
+name: ACE Service Installer
+version: "0.1.0"
+slug: ace_service_installer
+description: Install and run the Alfen ACE Service Installer in Home Assistant
+image: "ghcr.io/ludero-git/ha-ace-service-installer"
+url: https://github.com/ludero-git/ha-ace-service-installer
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8100
+ingress_stream: true
+panel_icon: mdi:wrench-cog
+panel_title: ACE Service Installer
+panel_admin: true
+host_network: true
+privileged:
+  - NET_ADMIN
+  - NET_RAW
+map:
+  - type: app_config
+    read_only: false
+    path: /config
+options:
+  installer_download_link: "https://web.archive.org/web/20260822124756/https://api.media.atlassian.com/file/5cc708dd-df74-44e9-8b5c-7f15abd94b05/binary?token=eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiI3N2ZiMWU5OS1lMjJmLTQ5ZWItOTkwMi0yZjMxMDUwNjA5Y2QiLCJhY2Nlc3MiOnsidXJuOmZpbGVzdG9yZTpmaWxlOjVjYzcwOGRkLWRmNzQtNDRlOS04YjVjLTdmMTVhYmQ5NGIwNSI6WyJyZWFkIl19LCJleHAiOjE3ODc0ODU3OTUsIm5iZiI6MTc4NzQwMjg3NSwiaHR0cHM6Ly9pZC5hdGxhc3NpYW4uY29tL2FwcEFjY3JlZGl0ZWQiOmZhbHNlLCJhdXRoVHlwZSI6InVuYXV0aGVudGljYXRlZCJ9.4ZDNu9yeudpDwUMBk8caZewfuq9PxaTjcdqoYRZbkEg&client=77fb1e99-e22f-49eb-9902-2f31050609cd&name=ACE%20Service%20Installer%20v4.3.0_424.msi"
+  silent_install: true
+  auto_install: true
+  auto_launch: true
+  auto_maximize: true
+  show_desktop: false
+  debug_wine: false
+schema:
+  installer_download_link: str
+  silent_install: bool
+  auto_install: bool
+  auto_launch: bool
+  auto_maximize: bool
+  show_desktop: bool
+  debug_wine: bool
+stage: experimental

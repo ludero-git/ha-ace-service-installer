@@ -1,0 +1,22 @@
+configuration:
+  installer_download_link:
+    name: Installer Download Link
+    description: Direct download link pointing to the ACE Service Installer MSI Installer file.
+  silent_install:
+    name: Silent Install
+    description: Enable silent installing of the ACE Service Installer, no popups will be shown. This automatically accepts the terms in the License Agreement.
+  auto_install:
+    name: Automatic Install
+    description: Automatically install the ACE Service Installer on boot.
+  auto_launch:
+    name: Automatic Launch
+    description: Automatically launch the ACE Service Installer when ready.
+  auto_maximize:
+    name: Automatic Maximization
+    description: Automatically resizes and maximizes the main ACE Service Installer window.
+  show_desktop:
+    name: Show Desktop
+    description: Show the full desktop and other windows, allows minimizing. Useful for debugging.
+  debug_wine:
+    name: Debug Wine
+    description: Enables extra Wine logging. Useful for debugging.

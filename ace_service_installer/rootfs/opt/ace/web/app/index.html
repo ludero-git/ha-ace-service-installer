@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>ACE Service Installer</title>
+    <link rel="stylesheet" href="./assets/css/style.css">
+</head>
+
+<body>
+    <main class="app">
+        <header class="header">
+            <img class="app-icon" src="https://raw.githubusercontent.com/ludero-git/ha-ace-service-installer/master/ace_service_installer/icon.png">
+            <div class="header-info">
+                <h1>ACE Service Installer</h1>
+                <p id="runtimeText">unknown · unknown · Wine unknown</p>
+            </div>
+        </header>
+
+        <section class="layout">
+            <section class="viewer-section">
+                <div class="section-bar">
+                    <span>Display</span>
+
+                    <div class="display-actions">
+                        <span>1280 x 800</span>
+                        <button class="plain-button" type="button" id="fullscreenButton">
+                            Fullscreen
+                        </button>
+                    </div>
+                </div>
+                <div class="display-area" id="displayArea">
+                    <div class="display" id="display" tabindex="0">
+                        <div class="display-placeholder">
+                            <strong>VNC display</strong>
+                            <span>Waiting for session</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="controls">
+                <section class="control-group">
+                    <h2>Service</h2>
+                    <div class="button-row">
+                        <button class="button primary" type="button" id="installButton">Install</button>
+                        <button class="button" type="button" id="launchButton">Launch</button>
+                    </div>
+                    <div class="status-line">
+                        <span class="status-dot" id="statusDot" data-state="ready"></span>
+                        <span class="status-text" id="statusText">Ready</span>
+                    </div>
+                </section>
+
+                <section class="control-group">
+                    <h2>Clipboard</h2>
+                    <div class="button-row">
+                        <button class="button" type="button" id="copyButton">Copy</button>
+                        <button class="button" type="button" id="pasteButton">Paste</button>
+                    </div>
+                </section>
+
+                <section class="control-group">
+                    <div class="group-title-row">
+                        <h2>Files</h2>
+                    </div>
+                    <input id="fileInput" type="file" multiple hidden>
+                    <button class="drop-zone" type="button" id="dropZone">
+                        <strong>Drop files here</strong>
+                        <span>or click to browse</span>
+                    </button>
+                    <div class="file-list" id="fileList"></div>
+                </section>
+
+                <button class="button full" type="button" id="logsButton">
+                    <span id="logsButtonText">Hide logs</span>
+                </button>
+            </aside>
+        </section>
+
+        <section class="logs-section" id="logsSection">
+            <div class="section-bar">
+                <div class="logs-title">
+                    <span>Logs</span>
+                </div>
+                <button class="plain-button" type="button" id="clearLogsButton">Clear</button>
+            </div>
+            <pre class="logs" id="logs"><code id="logsText">No logs yet...</code></pre>
+        </section>
+    </main>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script type="module" src="./assets/js/app.js"></script>
+</body>
+
+</html>

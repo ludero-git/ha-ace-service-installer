@@ -1,0 +1,9 @@
+.vscode/*
+!.vscode/tasks.json
+
+# C# / .NET for tools
+*/tools/**/[Bb]in/
+*/tools/**/[Oo]bj/
+
+# Python
+**/__pycache__/

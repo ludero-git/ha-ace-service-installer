@@ -1,0 +1,178 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  APP_DIR: ace_service_installer
+  ARCHITECTURES: '["amd64", "aarch64"]'
+  IMAGE_NAME: ha-ace-service-installer
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version=$(
+            awk -F': *' \
+              '$1 == "version" {gsub(/[" ]/, "", $2); print $2}' \
+              "$APP_DIR/config.yaml"
+          )
+
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not read version from $APP_DIR/config.yaml"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+          fi
+
+          old_version=""
+
+          if [[ -n "$base_sha" && ! "$base_sha" =~ ^0+$ ]]; then
+            old_config="$(
+              git show "$base_sha:$APP_DIR/config.yaml" 2>/dev/null || true
+            )"
+
+            if [[ -n "$old_config" ]]; then
+              old_version=$(
+                printf '%s\n' "$old_config" |
+                  awk -F': *' \
+                    '$1 == "version" {gsub(/[" ]/, "", $2); print $2}'
+              )
+            fi
+          fi
+
+          if [[ "$version" == "$old_version" ]]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changelog_heading=$(
+            grep -m1 '^## ' "$APP_DIR/CHANGELOG.md" || true
+          )
+
+          if [[ -z "$changelog_heading" ]]; then
+            echo "::error::CHANGELOG.md does not contain a release heading"
+            exit 1
+          fi
+
+          changelog_version=$(
+            printf '%s\n' "$changelog_heading" |
+              awk '{print $2}'
+          )
+
+          if [[ "$changelog_version" != "$version" ]]; then
+            echo "::error::Latest CHANGELOG.md entry must be version $version"
+            echo "::error::Found: $changelog_heading"
+            exit 1
+          fi
+
+          if ! [[ "$changelog_heading" =~ ^##\ [^[:space:]]+\ -\ [0-9]{2}/[0-9]{2}/[0-9]{4}$ ]]; then
+            echo "::error::Expected changelog heading: '## $version - DD/MM/YYYY'"
+            exit 1
+          fi
+
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+      - id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.06.0
+        with:
+          architectures: ${{ env.ARCHITECTURES }}
+          image-name: ${{ env.IMAGE_NAME }}
+
+  build:
+    needs: check
+
+    if: >
+      github.event_name == 'push' &&
+      needs.check.outputs.release == 'true'
+
+    strategy:
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
+
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: home-assistant/builder/actions/build-image@2026.06.0
+        with:
+          arch: ${{ matrix.arch }}
+          context: ./${{ env.APP_DIR }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ needs.check.outputs.version }}
+            latest
+          version: ${{ needs.check.outputs.version }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          push: "true"
+
+  release:
+    needs:
+      - check
+      - build
+
+    if: >
+      github.event_name == 'push' &&
+      needs.check.outputs.release == 'true'
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.06.0
+        with:
+          architectures: ${{ env.ARCHITECTURES }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ${{ env.IMAGE_NAME }}
+          image-tags: |
+            ${{ needs.check.outputs.version }}
+            latest
+
+      - name: Create GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release create \
+            "v${{ needs.check.outputs.version }}" \
+            --target "$GITHUB_SHA" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

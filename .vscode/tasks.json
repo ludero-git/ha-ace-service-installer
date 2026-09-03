@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Start Home Assistant",
+        "type": "shell",
+        "command": "supervisor_run",
+        "group": {
+          "kind": "test",
+          "isDefault": true
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Rebuild & Restart Add-on",
+        "type": "shell",
+        "command": "APP_NAME=ace_service_installer && ha apps rebuild local_$APP_NAME && ha apps restart local_$APP_NAME",
+        "presentation": {
+            "reveal": "always",
+            "panel": "new"
+        },
+        "problemMatcher": []
+        }
+    ]
+  }
+

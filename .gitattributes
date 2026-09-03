@@ -1,0 +1,4 @@
+* text=auto
+
+**/rootfs/** text eol=lf
+**/Dockerfile text eol=lf
