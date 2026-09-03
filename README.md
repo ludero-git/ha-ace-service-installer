@@ -7,28 +7,23 @@ Run the Alfen ACE Service Installer through a browser in Home Assistant.
 
 ## Installation
 
-### 1. Add the repository
+### 1. Open and add the repository
 
-[![Add repository][repository-badge]][repository-add]
+[![Open app][app-badge]][app-open]
 
-**Manually:**
+**Or manually:**
 
-1. From the Home Assistant App Store, navigate to the overflow menu in the top right corner and select "Repositories".
-2. Add the following URL: `https://github.com/ludero-git/ha-ace-service-installer`.
-3. Refresh the App store and you should see the ACE Service Installer app appear.
+1. In the Home Assistant App Store, open **Repositories**.
+2. Add `https://github.com/ludero-git/ha-ace-service-installer`.
+3. Refresh the App Store and open **ACE Service Installer**.
 
 ### 2. Install the app
 
-[![Install app][app-badge]][app-install]
-
-**Manually:**
-
-1. From the Home Assistant App Store, navigate to ACE Service Installer.
-2. Press "Install".
+Click **Install**.
 
 ### 3. Configure and start
 
-Configure the app from Home Assistant and start it. The application can then be accessed through its web interface.
+Configure the app, then click **Start**. Access it through its web interface.
 
 ## Technical
 
@@ -59,9 +54,7 @@ Several files require compatibility patches.
 [MIT](./LICENSE)
 
 [repository]: https://github.com/ludero-git/ha-ace-service-installer
-[repository-badge]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
-[repository-add]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fludero-git%2Fha-ace-service-installer
 [app-badge]: https://my.home-assistant.io/badges/supervisor_addon.svg
-[app-install]: https://my.home-assistant.io/redirect/supervisor_addon/?addon=ace_service_installer&repository_url=https%3A%2F%2Fgithub.com%2Fludero-git%2Fha-ace-service-installer
+[app-open]: https://my.home-assistant.io/redirect/supervisor_addon/?addon=a805add3_ace_service_installer&repository_url=https%3A%2F%2Fgithub.com%2Fludero-git%2Fha-ace-service-installer
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
