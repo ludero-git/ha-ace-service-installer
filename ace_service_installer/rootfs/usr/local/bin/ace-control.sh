@@ -44,6 +44,10 @@ option_bool() {
 }
 
 setup_wine() {
+  # Ensure Wine uses a UTF-8 locale for correct filename handling.
+  export LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
+
   if [ "$(option_bool debug_wine false)" = true ]; then
     export WINEDEBUG='+timestamp,err+all,fixme+all'
     log "Wine debug logging enabled"
