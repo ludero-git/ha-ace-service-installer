@@ -1,9 +1,10 @@
 # <img width="50" height="50" align="absmiddle" alt="Logo" src="https://raw.githubusercontent.com/ludero-git/ha-ace-service-installer/main/ace_service_installer/icon.png" /> HA ACE Service Installer
 
+[![Latest Version][version-shield]][repository]
 [![Supports aarch64 Architecture][aarch64-shield]][repository]
 [![Supports amd64 Architecture][amd64-shield]][repository]
 
-Run the Alfen ACE Service Installer through a browser in Home Assistant.
+Install and run the Alfen ACE Service Installer in Home Assistant.
 
 ## Installation
 
@@ -56,5 +57,6 @@ Several files require compatibility patches.
 [repository]: https://github.com/ludero-git/ha-ace-service-installer
 [app-badge]: https://my.home-assistant.io/badges/supervisor_addon.svg
 [app-open]: https://my.home-assistant.io/redirect/supervisor_addon/?addon=a805add3_ace_service_installer&repository_url=https%3A%2F%2Fgithub.com%2Fludero-git%2Fha-ace-service-installer
+[version-shield]: https://img.shields.io/github/v/tag/ludero-git/ha-ace-service-installer?sort=semver
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
