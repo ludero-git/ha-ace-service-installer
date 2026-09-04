@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - 04/09/2026
+
+### Changed
+
+- Reduced Docker image size and removed unnecessary dependencies.
+
 ## 0.1.1 - 04/09/2026
 
 ### Fixed
