@@ -1,5 +1,5 @@
 name: ACE Service Installer
-version: "0.1.1"
+version: "0.1.2"
 slug: ace_service_installer
 description: Install and run the Alfen ACE Service Installer in Home Assistant
 image: "ghcr.io/ludero-git/ha-ace-service-installer"

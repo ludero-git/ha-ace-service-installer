@@ -1,6 +1,33 @@
 # syntax=docker/dockerfile:1
 
 ARG BUILD_FROM=debian:13-slim
+
+FROM ${BUILD_FROM} AS novnc-assets
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN /bin/bash <<'EOF'
+set -eu
+
+echo "==> Preparing noVNC assets"
+
+apt-get update
+
+apt-get install -y --no-install-recommends \
+  novnc
+
+mkdir -p /out
+cp -a /usr/share/novnc/. /out/
+
+rm -rf \
+  /var/lib/apt/lists/* \
+  /var/cache/apt/* \
+  /tmp/* \
+  /var/tmp/*
+
+echo "==> noVNC assets ready"
+EOF
+
 FROM ${BUILD_FROM} AS os-base
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -23,11 +50,6 @@ apt-get install -y --no-install-recommends \
   fonts-dejavu-core \
   fonts-liberation \
   jq \
-  libegl1 \
-  libgl1 \
-  libgl1-mesa-dri \
-  libglu1-mesa \
-  libvulkan1 \
   libxcomposite1 \
   libxcursor1 \
   libxi6 \
@@ -35,9 +57,7 @@ apt-get install -y --no-install-recommends \
   libxrandr2 \
   libxrender1 \
   libxtst6 \
-  mesa-vulkan-drivers \
   nginx \
-  novnc \
   openbox \
   python3 \
   python3-flask \
@@ -50,7 +70,37 @@ apt-get install -y --no-install-recommends \
   x11vnc \
   xvfb
 
-rm -rf /var/lib/apt/lists/*
+echo "==> Removing unused Mesa/LLVM graphics payload"
+
+strip_package_payload()
+{
+  package="$1"
+
+  dpkg-query -L "$package" 2>/dev/null |
+    while IFS= read -r path; do
+      if [ -f "$path" ] || [ -L "$path" ]; then
+        rm -f "$path"
+      fi
+    done
+}
+
+dpkg-query -W -f='${binary:Package}\n' 2>/dev/null |
+  grep -E '^(mesa-|lib[^ ]*mesa[^ ]*|libgbm1|libllvm[0-9]+|libz3-[0-9]+)(:.*)?$' |
+  while IFS= read -r package; do
+    echo "    stripping $package"
+    strip_package_payload "$package"
+  done
+
+ldconfig
+
+rm -rf \
+  /var/lib/apt/lists/* \
+  /var/cache/apt/* \
+  /usr/share/doc/* \
+  /usr/share/man/* \
+  /usr/share/info/* \
+  /tmp/* \
+  /var/tmp/*
 
 echo "==> Base OS packages ready"
 EOF
@@ -100,7 +150,37 @@ case "$TARGETARCH" in
     ;;
 esac
 
-rm -rf /var/lib/apt/lists/*
+echo "==> Removing any Mesa/LLVM payload introduced by Wine"
+
+strip_package_payload()
+{
+  package="$1"
+
+  dpkg-query -L "$package" 2>/dev/null |
+    while IFS= read -r path; do
+      if [ -f "$path" ] || [ -L "$path" ]; then
+        rm -f "$path"
+      fi
+    done
+}
+
+dpkg-query -W -f='${binary:Package}\n' 2>/dev/null |
+  grep -E '^(mesa-|lib[^ ]*mesa[^ ]*|libgbm1|libllvm[0-9]+|libz3-[0-9]+)(:.*)?$' |
+  while IFS= read -r package; do
+    echo "    stripping $package"
+    strip_package_payload "$package"
+  done
+
+ldconfig
+
+rm -rf \
+  /var/lib/apt/lists/* \
+  /var/cache/apt/* \
+  /usr/share/doc/* \
+  /usr/share/man/* \
+  /usr/share/info/* \
+  /tmp/* \
+  /var/tmp/*
 
 echo "==> Wine runtime ready"
 EOF
@@ -125,8 +205,6 @@ mkdir -p \
   /data/home/ace/Documents \
   /data/home/ace/Downloads
 
-cp -a /usr/share/novnc/. /opt/ace/web/novnc/
-
 chown -R \
   ace:ace \
   /opt/ace \
@@ -135,6 +213,10 @@ chown -R \
 
 chmod 0700 /tmp/runtime-ace
 EOF
+
+COPY --from=novnc-assets --chown=ace:ace \
+  /out/ \
+  /opt/ace/web/novnc/
 
 FROM runtime-base AS winetricks-base
 
@@ -154,7 +236,11 @@ apt-get install -y --no-install-recommends \
   unzip \
   winetricks
 
-rm -rf /var/lib/apt/lists/*
+rm -rf \
+  /var/lib/apt/lists/* \
+  /var/cache/apt/* \
+  /tmp/* \
+  /var/tmp/*
 
 echo "==> Winetricks ready"
 EOF
@@ -178,7 +264,12 @@ echo "==> Installing Wine fonts"
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
-Xvfb :99 -screen 0 1280x720x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+Xvfb :99 \
+  -screen 0 1280x720x24 \
+  -nolisten tcp \
+  -ac \
+  -extension GLX \
+  >/tmp/xvfb.log 2>&1 &
 
 for _ in {1..50}; do
   [ -S /tmp/.X11-unix/X99 ] && break
@@ -218,7 +309,12 @@ case "$TARGETARCH" in
     ;;
 esac
 
-Xvfb :99 -screen 0 1280x720x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+Xvfb :99 \
+  -screen 0 1280x720x24 \
+  -nolisten tcp \
+  -ac \
+  -extension GLX \
+  >/tmp/xvfb.log 2>&1 &
 
 for _ in {1..50}; do
   [ -S /tmp/.X11-unix/X99 ] && break
@@ -238,6 +334,14 @@ echo "==> Installing .NET Framework 4.8"
 WINEDLLOVERRIDES="mscoree,mshtml=" \
   WINEFLAGS="-passive -norestart" \
   winetricks -q dotnet48
+
+echo "==> Cleaning Wine prefix"
+
+rm -rf \
+  "$WINEPREFIX/drive_c/windows/Microsoft.NET/Framework64/v4.0.30319/SetupCache" \
+  "$WINEPREFIX/drive_c/windows/Temp/"* \
+  "$WINEPREFIX/drive_c/users/ace/Temp/"* \
+  "$WINEPREFIX/drive_c/users/ace/AppData/Local/Temp/"*
 
 echo "==> Wine .NET prefix ready"
 EOF
@@ -333,6 +437,14 @@ rm -f /etc/nginx/sites-enabled/default
 ln -s \
   /etc/nginx/sites-available/ace \
   /etc/nginx/sites-enabled/ace
+
+rm -rf \
+  /var/cache/apt/* \
+  /usr/share/doc/* \
+  /usr/share/man/* \
+  /usr/share/info/* \
+  /tmp/* \
+  /var/tmp/*
 EOF
 
 RUN /bin/bash <<'EOF'
