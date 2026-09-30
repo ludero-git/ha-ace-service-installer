@@ -248,6 +248,9 @@ function connectVnc() {
         });
 
         connection.addEventListener('disconnect', () => {
+            if (rfb !== connection) {
+                return;
+            }
             rfb = null;
 
             displayMessage.hidden = false;
@@ -487,9 +490,6 @@ async function pollLogs() {
         await new Promise(resolve => setTimeout(resolve, 1000));
     }
 }
-
-fitDisplay();
-connectVnc();
 
 pollStatus();
 pollLogs();

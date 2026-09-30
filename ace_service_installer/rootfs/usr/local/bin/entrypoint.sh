@@ -139,7 +139,6 @@ runuser -u ace -- env \
     -localhost \
     -rfbport 5900 \
     -nopw \
-    -noxdamage \
   >>"$LOG" 2>&1 &
 VNC_PID=$!
 
