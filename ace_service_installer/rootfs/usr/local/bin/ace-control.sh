@@ -128,12 +128,18 @@ session_watch() {
       wmctrl -ia "$id" >/dev/null 2>&1 || true
     fi
 
-    # Maximize when enabled.
-    if [ "$auto_maximize" = true ] &&
-       { [[ "$state" != *"_NET_WM_STATE_MAXIMIZED_VERT"* ]] ||
-         [[ "$state" != *"_NET_WM_STATE_MAXIMIZED_HORZ"* ]]; }; then
-      wmctrl -ir "$id" -b add,maximized_vert,maximized_horz >/dev/null 2>&1 || true
-      log "Maximized ACE main window"
+    # Maximize window by resizing it to desktop size and accounting for top bar.
+    if [ "$auto_maximize" = true ]; then
+      read -r wx wy ww wh < <(
+        xprop -root _NET_WORKAREA | grep -o '[0-9]\+, [0-9]\+, [0-9]\+, [0-9]\+' |
+        head -1 | tr -d ','
+      )
+
+      read -r l r t b < <(
+        xprop -id "$id" _NET_FRAME_EXTENTS | sed 's/.*= //; s/,//g'
+      )
+
+      wmctrl -ir "$id" -e "0,$((wx+l)),$((wy+t)),$((ww-l-r)),$((wh-t-b))" >/dev/null 2>&1 || true
     fi
   done
 }

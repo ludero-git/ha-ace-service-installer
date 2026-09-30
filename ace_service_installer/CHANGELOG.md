@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Fixed window maximization loop by switching to manual resizing (#6)
+
 ## 0.1.2 - 04/09/2026
 
 ### Changed
