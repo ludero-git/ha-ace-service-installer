@@ -488,8 +488,5 @@ async function pollLogs() {
     }
 }
 
-fitDisplay();
-connectVnc();
-
 pollStatus();
 pollLogs();
