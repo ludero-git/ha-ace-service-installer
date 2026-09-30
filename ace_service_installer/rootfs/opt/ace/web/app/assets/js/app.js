@@ -248,6 +248,9 @@ function connectVnc() {
         });
 
         connection.addEventListener('disconnect', () => {
+            if (rfb !== connection) {
+                return;
+            }
             rfb = null;
 
             displayMessage.hidden = false;
