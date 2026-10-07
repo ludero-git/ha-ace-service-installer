@@ -465,6 +465,7 @@ fi
 source_hash="$(
   find \
     /usr/local/bin \
+    /usr/local/lib/ace \
     /opt/ace/web/app \
     /opt/ace/tools \
     /opt/ace/openbox \

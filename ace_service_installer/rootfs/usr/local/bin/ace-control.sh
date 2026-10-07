@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-OPTIONS=${ACE_OPTIONS:-/data/run/options.json}
+ACE_OPTIONS=${ACE_OPTIONS:-/data/run/options.json}
 LOCK=/data/run/control.lock
 ACTION=/data/run/current-action
 MSI=/tmp/ACE-Service-Installer.msi
@@ -13,10 +13,11 @@ PATCHER=/opt/ace/tools/service-installer-patcher/ServiceInstallerPatcher.exe
 PATCH_MARKER="$ACE_DIR/.patched"
 
 LOG=${ACE_LOG:-/config/ace-service-installer.log}
-
 OPENBOX_APPLICATION=/opt/ace/openbox/application.xml
 OPENBOX_DESKTOP=/opt/ace/openbox/desktop.xml
 OPENBOX_DEST=${HOME:-/data/home/ace}/.config/openbox/rc.xml
+
+source /usr/local/lib/ace/config.sh
 
 log() {
   printf '%s [control] %s\n' "$(date -Is)" "$*" >>"$LOG"
@@ -27,33 +28,16 @@ fail() {
   exit 1
 }
 
-option() {
-  jq -r \
-    --arg key "$1" \
-    --arg def "$2" \
-    '.[$key] // $def' \
-    "$OPTIONS"
-}
-
-option_bool() {
-  jq -r \
-    --arg key "$1" \
-    --argjson def "$2" \
-    'if .[$key] == null then $def else .[$key] end' \
-    "$OPTIONS"
-}
-
 setup_wine() {
-  # Ensure Wine uses a UTF-8 locale for correct filename handling.
   export LANG=C.UTF-8
   export LC_ALL=C.UTF-8
 
-  if [ "$(option_bool debug_wine false)" = true ]; then
-    export WINEDEBUG='+timestamp,err+all,fixme+all'
-    log "Wine debug logging enabled"
-  else
-    export WINEDEBUG=-all
-  fi
+  case "$ACE_LOG_LEVEL" in
+    info) WINEDEBUG=-all ;;
+    debug) WINEDEBUG='-all,+timestamp,err+all,warn+all,fixme+all' ;;
+    trace) WINEDEBUG='-all,+timestamp,err+all,warn+all,fixme+all,trace+all' ;;
+  esac
+  export WINEDEBUG
 
   if [ "$(dpkg --print-architecture)" = arm64 ]; then
     export HODLL=libwow64fex.dll
@@ -68,7 +52,7 @@ ace_running() {
 configure_openbox() {
   mkdir -p "$(dirname "$OPENBOX_DEST")"
 
-  if [ "${SHOW_DESKTOP:-false}" = true ]; then
+  if [ "$ACE_DISPLAY_MODE" = desktop ]; then
     cp "$OPENBOX_DESKTOP" "$OPENBOX_DEST"
   else
     cp "$OPENBOX_APPLICATION" "$OPENBOX_DEST"
@@ -77,10 +61,14 @@ configure_openbox() {
 
 session_watch() {
   local target_desktop=0
-  local auto_maximize="${AUTO_MAXIMIZE:-true}"
-  local show_desktop="${SHOW_DESKTOP:-false}"
+  local auto_maximize="$ACE_AUTO_MAXIMIZE"
+  local show_desktop=false
   local main_id=""
   local current windows id desktop x y width height host title state
+
+  if [ "$ACE_DISPLAY_MODE" = desktop ]; then
+    show_desktop=true
+  fi
 
   wmctrl -s "$target_desktop" >/dev/null 2>&1 || true
 
@@ -114,32 +102,35 @@ session_watch() {
     )
     [ -n "$id" ] || continue
 
-    # Always keep it on the target desktop.
     if [ "$desktop" != "-1" ] && [ "$desktop" != "$target_desktop" ]; then
       wmctrl -ir "$id" -t "$target_desktop" >/dev/null 2>&1 || true
     fi
 
     state="$(xprop -id "$id" _NET_WM_STATE 2>/dev/null || true)"
 
-    # Restore unless showing the desktop is allowed.
     if [ "$show_desktop" = false ] &&
        [[ "$state" == *"_NET_WM_STATE_HIDDEN"* ]]; then
       wmctrl -ir "$id" -b remove,hidden >/dev/null 2>&1 || true
       wmctrl -ia "$id" >/dev/null 2>&1 || true
     fi
 
-    # Maximize window by resizing it to desktop size and accounting for top bar.
     if [ "$auto_maximize" = true ]; then
       read -r wx wy ww wh < <(
-        xprop -root _NET_WORKAREA | grep -o '[0-9]\+, [0-9]\+, [0-9]\+, [0-9]\+' |
-        head -1 | tr -d ','
+        xprop -root _NET_WORKAREA |
+          grep -o '[0-9]\+, [0-9]\+, [0-9]\+, [0-9]\+' |
+          head -1 |
+          tr -d ','
       )
 
       read -r l r t b < <(
-        xprop -id "$id" _NET_FRAME_EXTENTS | sed 's/.*= //; s/,//g'
+        xprop -id "$id" _NET_FRAME_EXTENTS |
+          sed 's/.*= //; s/,//g'
       )
 
-      wmctrl -ir "$id" -e "0,$((wx+l)),$((wy+t)),$((ww-l-r)),$((wh-t-b))" >/dev/null 2>&1 || true
+      wmctrl \
+        -ir "$id" \
+        -e "0,$((wx+l)),$((wy+t)),$((ww-l-r)),$((wh-t-b))" \
+        >/dev/null 2>&1 || true
     fi
   done
 }
@@ -166,11 +157,6 @@ ensure_ace_patched() {
 }
 
 download_installer() {
-  local url
-
-  url="$(option installer_download_link '')"
-  [ -n "$url" ] || fail "installer_download_link is empty"
-
   log "Downloading ACE Service Installer"
   rm -f "$MSI"
 
@@ -181,14 +167,14 @@ download_installer() {
     --retry 3 \
     --retry-all-errors \
     --connect-timeout 20 \
-    "$url" \
+    "$ACE_INSTALLER_URL" \
     -o "$MSI" \
     >>"$LOG" 2>&1 ||
     fail "Could not download ACE Service Installer"
 }
 
 install_ace() {
-  local rc silent win_msi
+  local rc win_msi
 
   printf '%s\n' install >"$ACTION"
 
@@ -198,23 +184,24 @@ install_ace() {
   win_msi="$(winepath -w "$MSI" 9>&- 2>>"$LOG")" ||
     fail "Could not resolve installer path"
 
-  silent="$(option_bool silent_install true)"
+  case "$ACE_INSTALLER_MODE" in
+    silent)
+      log "Starting unattended MSI installation"
 
-  if [ "$silent" = true ]; then
-    log "Starting unattended MSI installation"
+      set +e
+      wine msiexec /i "$win_msi" /qn /norestart 9>&- >>"$LOG" 2>&1
+      rc=$?
+      set -e
+      ;;
+    interactive)
+      log "Starting interactive MSI installation"
 
-    set +e
-    wine msiexec /i "$win_msi" /qn /norestart 9>&- >>"$LOG" 2>&1
-    rc=$?
-    set -e
-  else
-    log "Starting interactive MSI installation"
-
-    set +e
-    wine msiexec /i "$win_msi" 9>&- >>"$LOG" 2>&1
-    rc=$?
-    set -e
-  fi
+      set +e
+      wine msiexec /i "$win_msi" 9>&- >>"$LOG" 2>&1
+      rc=$?
+      set -e
+      ;;
+  esac
 
   log "msiexec returned with status $rc"
 
@@ -232,6 +219,7 @@ install_ace() {
 
   if [ ! -f "$ACE_EXE" ]; then
     log "ACE executable not found after MSI installation"
+
     find "$WINEPREFIX/drive_c" \
       -iname 'ACEServiceInstaller.exe' \
       -print \
@@ -271,12 +259,12 @@ launch_ace() {
     fail "Wine failed to start ACE Service Installer"
   fi
 
-  # Wait until ACE actually appears.
   for _ in {1..30}; do
     if ace_running; then
       log "ACE Service Installer launched"
       return
     fi
+
     sleep 0.5
   done
 
@@ -284,20 +272,21 @@ launch_ace() {
 }
 
 auto_flow() {
-  if [ "$(option_bool auto_install true)" = true ] && [ ! -f "$ACE_EXE" ]; then
+  if [ "$ACE_AUTO_INSTALL" = true ] && [ ! -f "$ACE_EXE" ]; then
     install_ace
   fi
 
   if [ ! -f "$ACE_EXE" ]; then
-    if [ "$(option_bool auto_launch true)" = true ]; then
+    if [ "$ACE_AUTO_LAUNCH" = true ]; then
       log "Auto-launch skipped because ACE is not installed"
     fi
+
     return
   fi
 
   ensure_ace_patched
 
-  if [ "$(option_bool auto_launch true)" = true ]; then
+  if [ "$ACE_AUTO_LAUNCH" = true ]; then
     launch_ace
   fi
 }
@@ -331,6 +320,7 @@ printf '%s\n' "$command" >"$ACTION"
 trap 'rm -f "$ACTION"' EXIT
 
 setup_wine
+
 log "Action started: $command"
 
 case "$command" in
