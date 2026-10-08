@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 - 08/10/2026
+
+### Changed
+
+- **Breaking:** Grouped and improved configuration options.
+- Updated configuration and debugging documentation.
+- Centralized runtime configuration.
+
 ## 0.1.3 - 30/09/2026
 
 ### Changed

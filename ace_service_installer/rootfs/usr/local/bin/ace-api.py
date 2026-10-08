@@ -23,7 +23,9 @@ UPLOAD_DIR = WINEPREFIX / "drive_c" / "ace-files"
 ACTION = RUN / "current-action"
 LOCK = RUN / "control.lock"
 LOG = pathlib.Path(os.environ.get("ACE_LOG", "/config/ace-service-installer.log"))
+LOG_LEVEL = os.environ.get("ACE_LOG_LEVEL", "info")
 CONTROL = "/usr/local/bin/ace-control.sh"
+
 
 def output(*args):
     return subprocess.check_output(
@@ -31,6 +33,7 @@ def output(*args):
         text=True,
         stderr=subprocess.STDOUT,
     ).strip()
+
 
 BUILD = json.loads(
     pathlib.Path("/opt/ace/build-info.json").read_text(encoding="utf-8")
@@ -44,10 +47,17 @@ RUNTIME = {
     "source_hash": BUILD["source_hash"],
 }
 
+
 def log_message(message):
     timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
     with LOG.open("a", encoding="utf-8") as log:
         log.write(f"{timestamp} [api] {message}\n")
+
+
+def debug(message):
+    if LOG_LEVEL != "info":
+        log_message(f"DEBUG: {message}")
+
 
 def running():
     for cmdline in pathlib.Path("/proc").glob("[0-9]*/cmdline"):
@@ -56,7 +66,9 @@ def running():
                 return True
         except OSError:
             pass
+
     return False
+
 
 def operation_active():
     fd = os.open(LOCK, os.O_RDWR | os.O_CREAT, 0o644)
@@ -72,12 +84,14 @@ def operation_active():
     finally:
         os.close(fd)
 
+
 def current_action():
     if not operation_active():
         try:
             ACTION.unlink()
         except FileNotFoundError:
             pass
+
         return None
 
     try:
@@ -85,14 +99,17 @@ def current_action():
     except OSError:
         return None
 
+
 @app.after_request
 def no_cache(response):
     response.headers["Cache-Control"] = "no-store"
     return response
 
+
 @app.get("/api/health")
 def health():
     return jsonify(ok=True)
+
 
 @app.get("/api/status")
 def status():
@@ -126,6 +143,7 @@ def status():
         log_path=str(LOG),
     )
 
+
 @app.get("/api/logs")
 def logs():
     try:
@@ -134,22 +152,27 @@ def logs():
         lines = 180
 
     lines = max(20, min(lines, 600))
+
     proc = subprocess.run(
         ["tail", "-n", str(lines), str(LOG)],
         capture_output=True,
         text=True,
         timeout=5,
     )
+
     return jsonify(lines=proc.stdout.splitlines())
+
 
 @app.delete("/api/logs")
 def clear_logs():
     LOG.write_text("", encoding="utf-8")
     return jsonify(ok=True)
 
+
 @app.post("/api/files")
 def files():
     uploads = request.files.getlist("files")
+
     if not uploads:
         return jsonify(ok=False, error="No files provided"), 400
 
@@ -158,6 +181,7 @@ def files():
 
     for upload in uploads:
         name = secure_filename(upload.filename)
+
         if not name:
             continue
 
@@ -173,6 +197,7 @@ def files():
 
     return jsonify(ok=True, files=saved)
 
+
 @app.post("/api/action/<name>")
 def action(name):
     if name not in {"install", "launch"}:
@@ -186,7 +211,7 @@ def action(name):
     except FileNotFoundError:
         pass
 
-    subprocess.Popen(
+    process = subprocess.Popen(
         [CONTROL, name],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
@@ -195,7 +220,10 @@ def action(name):
         env=os.environ.copy(),
     )
 
+    debug(f"Started {name} action with PID {process.pid}")
+
     return jsonify(ok=True, action=name), 202
+
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=8098, threaded=True)

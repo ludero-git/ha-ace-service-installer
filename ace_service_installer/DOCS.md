@@ -26,24 +26,40 @@ Network isolation, VLANs, or firewall rules may interfere with discovery.
 
 ## Troubleshooting
 
-If the installer or application does not start:
+For additional diagnostics:
 
 ```yaml
-show_desktop: true
-debug_wine: true
+logging:
+  level: debug
+```
+
+For verbose Wine tracing:
+
+```yaml
+logging:
+  level: trace
+```
+
+To expose the full desktop and other windows:
+
+```yaml
+display:
+  mode: desktop
 ```
 
 If automatic installation or launch is not working, verify:
 
 ```yaml
-auto_install: true
-auto_launch: true
+startup:
+  install: true
+  launch: true
 ```
 
 If maximization causes issues:
 
 ```yaml
-auto_maximize: false
+display:
+  maximize: false
 ```
 
 ## Support

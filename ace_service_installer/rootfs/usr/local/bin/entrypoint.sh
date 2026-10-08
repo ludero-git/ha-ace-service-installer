@@ -15,7 +15,6 @@ install -d -o ace -g ace -m 0755 \
 
 install -d -o ace -g ace -m 0700 /tmp/runtime-ace
 mkdir -p /config
-
 install -o ace -g ace -m 0600 "$SOURCE_OPTIONS" "$RUNTIME_OPTIONS"
 export ACE_OPTIONS="$RUNTIME_OPTIONS"
 
@@ -24,27 +23,18 @@ rm -f /data/run/current-action
 touch "$LOG"
 chown ace:ace "$LOG"
 chmod 0644 "$LOG"
-
-# Clear the logs.
 : > "$LOG"
 
 log() {
   printf '%s [entrypoint] %s\n' "$(date -Is)" "$*" | tee -a "$LOG"
 }
 
-option_bool() {
-  jq -r \
-    --arg key "$1" \
-    --argjson def "$2" \
-    'if .[$key] == null then $def else .[$key] end' \
-    "$RUNTIME_OPTIONS"
-}
+source /usr/local/lib/ace/config.sh
 
 terminate() {
   trap - TERM INT EXIT
 
   log "Stopping ACE environment"
-
   kill \
     "${SESSION_PID:-}" \
     "${AUTO_PID:-}" \
@@ -83,14 +73,10 @@ runuser -u ace -- env DISPLAY=:0 xdpyinfo >/dev/null 2>&1 || {
   exit 1
 }
 
-SHOW_DESKTOP="$(option_bool show_desktop false)"
-AUTO_MAXIMIZE="$(option_bool auto_maximize true)"
-
 log "Configuring Openbox"
-
 runuser -u ace -- env \
   HOME=/data/home/ace \
-  SHOW_DESKTOP="$SHOW_DESKTOP" \
+  ACE_OPTIONS="$RUNTIME_OPTIONS" \
   /usr/local/bin/ace-control.sh configure-openbox \
   >>"$LOG" 2>&1
 
@@ -105,17 +91,15 @@ runuser -u ace -- env \
 OPENBOX_PID=$!
 
 log "Starting X11 session controller"
-
 runuser -u ace -- env \
   DISPLAY=:0 \
   HOME=/data/home/ace \
-  SHOW_DESKTOP="$SHOW_DESKTOP" \
-  AUTO_MAXIMIZE="$AUTO_MAXIMIZE" \
+  ACE_OPTIONS="$RUNTIME_OPTIONS" \
   /usr/local/bin/ace-control.sh session-watch \
   >>"$LOG" 2>&1 &
 SESSION_PID=$!
 
-if [ "$SHOW_DESKTOP" = true ]; then
+if [ "$ACE_DISPLAY_MODE" = desktop ]; then
   log "Desktop mode enabled"
 
   runuser -u ace -- env \
@@ -129,7 +113,6 @@ else
 fi
 
 log "Starting VNC transport"
-
 runuser -u ace -- env \
   DISPLAY=:0 \
   x11vnc \
@@ -148,7 +131,6 @@ runuser -u ace -- \
 WS_PID=$!
 
 log "Starting control API"
-
 runuser -u ace -- env \
   DISPLAY=:0 \
   HOME=/data/home/ace \
@@ -156,6 +138,7 @@ runuser -u ace -- env \
   WINEARCH=win64 \
   XDG_RUNTIME_DIR=/tmp/runtime-ace \
   ACE_LOG="$LOG" \
+  ACE_LOG_LEVEL="$ACE_LOG_LEVEL" \
   ACE_OPTIONS="$RUNTIME_OPTIONS" \
   python3 /usr/local/bin/ace-api.py \
   >>"$LOG" 2>&1 &
@@ -167,7 +150,6 @@ nginx -g 'daemon off;' >>"$LOG" 2>&1 &
 NGINX_PID=$!
 
 log "Starting automatic ACE actions"
-
 runuser -u ace -- env \
   DISPLAY=:0 \
   HOME=/data/home/ace \
@@ -217,7 +199,6 @@ while true; do
     fi
 
     log "Automatic ACE actions completed"
-
     WATCH_PIDS=("${CORE_PIDS[@]}")
     continue
   fi
